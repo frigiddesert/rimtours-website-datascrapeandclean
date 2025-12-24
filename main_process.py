@@ -113,11 +113,11 @@ def main():
     print("Step 5: Generating individual tour markdown files...")
     output_dir = f"output/tour_markdowns_{timestamp}"
     os.makedirs(output_dir, exist_ok=True)
-    
+
     for idx, row in df_processed.iterrows():
         tour_name = row['title'].replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
         tour_name = "".join(c for c in tour_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-        
+
         markdown_content = f"""# {row['title']}
 
 <!-- SYSTEM METADATA -->
@@ -128,9 +128,9 @@ def main():
 ---
 
 ## 1. The Shared DNA
-**Subtitle:** {row['subtitle']}  
-**Region:** {row['region']}  
-**Skill Level:** {row['skill_level']}  
+**Subtitle:** {row['subtitle']}
+**Region:** {row['region']}
+**Skill Level:** {row['skill_level']}
 **Season:** {row['season']}
 
 **Short Description:**
@@ -140,20 +140,42 @@ def main():
 > {row['description']}
 
 **Images:**
-{', '.join(row['images']) if isinstance(row['images'], list) else row['images']}
+`{', '.join(row['images']) if isinstance(row['images'], list) else row['images']}`
 
 ## 🌐 Website Links
 - **Tour Page:** [{row['url']}]({row['url']})
 
 ## 💵 Pricing Information
 """
-        
-        if isinstance(row['prices'], list):
-            for price in row['prices']:
-                markdown_content += f"**Price:** {price}\n\n"
-        else:
-            markdown_content += f"**Prices:** {row['prices']}\n\n"
-        
+
+        # Process pricing information to make it more readable
+        standard_price = row.get('standard_price', 'N/A')
+        private_price = row.get('private_price', 'N/A')
+
+        if standard_price and standard_price != 'N/A':
+            markdown_content += f"**Standard Price:** {standard_price}\n\n"
+
+        if private_price and private_price != 'N/A':
+            markdown_content += f"**Private Price:** {private_price}\n\n"
+
+        # Add parsed pricing information if available
+        parsed_std_pricing = row.get('parsed_standard_pricing', [])
+        parsed_priv_pricing = row.get('parsed_private_pricing', [])
+
+        if parsed_std_pricing:
+            markdown_content += "**Standard Pricing Options:**\n"
+            for pricing in parsed_std_pricing:
+                if pricing.strip():
+                    markdown_content += f"- {pricing}\n"
+            markdown_content += "\n"
+
+        if parsed_priv_pricing:
+            markdown_content += "**Private Pricing Options:**\n"
+            for pricing in parsed_priv_pricing:
+                if pricing.strip():
+                    markdown_content += f"- {pricing}\n"
+            markdown_content += "\n"
+
         markdown_content += f"""## 📋 Additional Information
 **Departs From:** {row['depart_location']}
 **Distance:** {row['distance']}
@@ -161,7 +183,7 @@ def main():
 **Special Notes:** {row['special_notes']}
 
 """
-        
+
         if row.get('business_group') in ['1', '3', '4']:
             markdown_content += f"""## 📅 Calendar & Availability
 **This is a multi-day tour with scheduled dates.**
@@ -180,7 +202,7 @@ For multi-day tours in Business Groups 1, 3, and 4:
 **This is a day tour that may be bookable on demand.**
 Day tours typically offer more flexible scheduling options.
 """
-        
+
         # Save individual tour file
         tour_file_path = os.path.join(output_dir, f"{tour_name}.md")
         with open(tour_file_path, 'w', encoding='utf-8') as f:

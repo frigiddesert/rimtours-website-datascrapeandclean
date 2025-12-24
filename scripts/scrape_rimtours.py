@@ -103,6 +103,23 @@ class RimToursDataScraper:
         # Extract pricing information (looking for price-related classes)
         price_elements = soup.find_all(class_=re.compile(r'.*price.*|.*cost.*|.*rate.*', re.I))
         prices = [elem.get_text(strip=True) for elem in price_elements if elem.get_text(strip=True)]
+
+        # Also look for pricing in common divs/paragraphs that contain price-related text
+        price_patterns = [
+            soup.find_all('div', class_=re.compile(r'.*pricing.*|.*rate.*|.*cost.*', re.I)),
+            soup.find_all('p', class_=re.compile(r'.*price.*|.*cost.*|.*rate.*', re.I)),
+            soup.find_all(text=re.compile(r'\$[\d,]+|\d+\+.*\$|Solo.*\$'))  # Look for dollar amounts
+        ]
+
+        for pattern_list in price_patterns:
+            for elem in pattern_list:
+                if hasattr(elem, 'parent'):
+                    elem_text = elem.parent.get_text(strip=True)
+                else:
+                    elem_text = str(elem).strip()
+
+                if elem_text and elem_text not in prices:
+                    prices.append(elem_text)
         
         # Extract other relevant information
         # Find elements with tour-specific classes

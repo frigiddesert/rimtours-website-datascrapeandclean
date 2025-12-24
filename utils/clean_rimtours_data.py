@@ -126,6 +126,68 @@ def clean_price_data(price_string):
     
     return {"price": "N/A", "currency": "USD", "type": "unknown", "original": price_text}
 
+def parse_pricing_information(price_string):
+    """
+    Parse complex pricing information into a structured format
+    """
+    if pd.isna(price_string) or str(price_string).strip() == "":
+        return []
+    
+    price_text = str(price_text)
+    
+    # Clean the text
+    clean_text = re.sub(r'<[^>]+>', ' ', price_text)  # Remove HTML tags
+    clean_text = re.sub(r'\s+', ' ', clean_text).strip()  # Normalize whitespace
+    
+    # Define patterns to extract different pricing components
+    patterns = [
+        # Pattern for "X+ $NNN pp" format
+        (r'(\d+)\+\s*\$(\d+)\s*pp', r'\1+ persons: $US\2 per person'),
+        # Pattern for "Solo $NNN pp" format
+        (r'Solo\s*\$(\d+)\s*pp', r'Solo (1 person): $US\1 per person'),
+        # Pattern for simple "$NNN" format
+        (r'\$(\d+)', r'$US\1'),
+        # Pattern for day types
+        (r'(Half Day|Full Day)', r'[\1]')
+    ]
+    
+    # Apply patterns to clean the text
+    for pattern, replacement in patterns:
+        clean_text = re.sub(pattern, replacement, clean_text)
+    
+    # Split by common delimiters to separate different pricing options
+    pricing_parts = re.split(r'[;,|]', clean_text)
+    pricing_parts = [part.strip() for part in pricing_parts if part.strip()]
+    
+    # Further structure the pricing data
+    structured_pricing = []
+    for part in pricing_parts:
+        # Skip common phrases that aren't pricing
+        if any(skip_phrase in part.lower() for skip_phrase in ['includes', 'subtract', 'does not include', 'price', 'upgrade', 'deposit', 'cancellation']):
+            continue
+        
+        # Add to structured pricing if it looks like actual pricing info
+        if re.search(r'\$\d+|\d+\+|\bSolo\b|\bFull\b|\bHalf\b', part, re.IGNORECASE):
+            structured_pricing.append(part.strip())
+    
+    return structured_pricing
+
+def format_pricing_markdown(pricing_list):
+    """
+    Format pricing information as clean markdown
+    """
+    if not pricing_list:
+        return "**No pricing information available**"
+    
+    markdown = ""
+    for i, price_info in enumerate(pricing_list):
+        # Clean up the text further
+        clean_info = re.sub(r'\s+', ' ', price_info).strip()
+        if clean_info:
+            markdown += f"- {clean_info}\n"
+    
+    return markdown.strip()
+
 def validate_tour_data(tour_dict):
     """
     Validate tour data structure
@@ -164,6 +226,13 @@ def process_tour_dataframe(df):
         df['price_cleaned'] = df['price'].apply(clean_price_data)
         df['standard_price'] = df['price_cleaned'].apply(lambda x: x.get('price', 'N/A'))
         df['price_type'] = df['price_cleaned'].apply(lambda x: x.get('type', 'unknown'))
+    
+    # Parse complex pricing information if available
+    if 'standard_price' in df.columns:
+        df['parsed_standard_pricing'] = df['standard_price'].apply(parse_pricing_information)
+    
+    if 'private_price' in df.columns:
+        df['parsed_private_pricing'] = df['private_price'].apply(parse_pricing_information)
     
     # Add validation column
     df['validation_status'] = df.apply(
