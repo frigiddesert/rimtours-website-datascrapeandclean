@@ -54,7 +54,7 @@ def main():
             "duration": "5-Day/4-Night",
             "depart_location": "Green River, UT",
             "distance": "107 (excluding hiking on Day 3)",
-            "special_notes": "A 6-Day version of this tour is also available",
+            "land_agency": "This tour is operated under permit with the Moab Field Office of the Bureau of Land Management. Rim Tours is an equal opportunity provider.",
             "available_dates": "9/16-20, 2025",
             "scraped_at": datetime.now().isoformat()
         },
@@ -71,7 +71,7 @@ def main():
             "duration": "4-Day/3-Night",
             "depart_location": "Grand Junction, CO",
             "distance": "130 miles",
-            "special_notes": "",
+            "land_agency": "This tour is operated under permit with the Manti-La Sal National Forest and the Moab Field Office of the Bureau of Land Management. Rim Tours is an equal opportunity provider.",
             "available_dates": "4/15-4/19, 2026",
             "scraped_at": datetime.now().isoformat()
         }
@@ -180,7 +180,7 @@ def main():
 **Departs From:** {row['depart_location']}
 **Distance:** {row['distance']}
 **Duration:** {row['duration']}
-**Special Notes:** {row['special_notes']}
+**Land Agency:** {row['land_agency']}
 
 """
 
