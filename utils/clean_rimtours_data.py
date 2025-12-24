@@ -132,44 +132,86 @@ def parse_pricing_information(price_string):
     """
     if pd.isna(price_string) or str(price_string).strip() == "":
         return []
-    
-    price_text = str(price_text)
-    
-    # Clean the text
-    clean_text = re.sub(r'<[^>]+>', ' ', price_text)  # Remove HTML tags
-    clean_text = re.sub(r'\s+', ' ', clean_text).strip()  # Normalize whitespace
-    
-    # Define patterns to extract different pricing components
-    patterns = [
-        # Pattern for "X+ $NNN pp" format
-        (r'(\d+)\+\s*\$(\d+)\s*pp', r'\1+ persons: $US\2 per person'),
-        # Pattern for "Solo $NNN pp" format
-        (r'Solo\s*\$(\d+)\s*pp', r'Solo (1 person): $US\1 per person'),
-        # Pattern for simple "$NNN" format
-        (r'\$(\d+)', r'$US\1'),
-        # Pattern for day types
-        (r'(Half Day|Full Day)', r'[\1]')
-    ]
-    
-    # Apply patterns to clean the text
-    for pattern, replacement in patterns:
-        clean_text = re.sub(pattern, replacement, clean_text)
-    
-    # Split by common delimiters to separate different pricing options
-    pricing_parts = re.split(r'[;,|]', clean_text)
-    pricing_parts = [part.strip() for part in pricing_parts if part.strip()]
-    
-    # Further structure the pricing data
+
+    price_text = str(price_string)
+
+    # Clean the text - remove HTML tags
+    clean_text = re.sub(r'<[^>]+>', ' ', price_text)
+    clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+
+    # Improved approach: First try to split by common delimiters
+    sections = re.split(r'[,;|]+', clean_text)
+
+    # If we only get one section (meaning no delimiters were found), try to parse it intelligently
+    if len(sections) <= 1:
+        # This might be a concatenated string like "Half DayFull DaySolo$240 ppSolo $300 pp2+$145 pp2+ $210 pp"
+        # Try to split by capital letters following lowercase letters (word boundaries)
+        # Insert spaces before capital letters that follow lowercase letters
+        spaced_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', clean_text)
+        # Also insert spaces before "$" signs
+        spaced_text = re.sub(r'([a-z])(\$\d+)', r'\1 \2', spaced_text)
+        # Also insert spaces before numbers that follow words
+        spaced_text = re.sub(r'([a-zA-Z])(\d+)', r'\1 \2', spaced_text)
+
+        # Now try to split by spaces and identify meaningful chunks
+        potential_sections = spaced_text.split()
+        sections = []
+
+        current_section = ""
+        for part in potential_sections:
+            # If this part looks like a price or contains pricing info, start a new section
+            if re.search(r'\$\d+', part) or any(word in part.lower() for word in ['solo', 'private', 'standard', 'adult', 'half', 'full', 'day']):
+                if current_section:
+                    sections.append(current_section.strip())
+                current_section = part
+            elif current_section:
+                # Add this part to the current section
+                current_section += " " + part
+            else:
+                current_section = part
+
+        if current_section:
+            sections.append(current_section.strip())
+
     structured_pricing = []
-    for part in pricing_parts:
-        # Skip common phrases that aren't pricing
-        if any(skip_phrase in part.lower() for skip_phrase in ['includes', 'subtract', 'does not include', 'price', 'upgrade', 'deposit', 'cancellation']):
+
+    for section in sections:
+        section = section.strip()
+        if not section:
             continue
-        
-        # Add to structured pricing if it looks like actual pricing info
-        if re.search(r'\$\d+|\d+\+|\bSolo\b|\bFull\b|\bHalf\b', part, re.IGNORECASE):
-            structured_pricing.append(part.strip())
-    
+
+        # Look for different pricing patterns
+        # Pattern 1: "Solo $XXX pp"
+        solo_match = re.search(r'(Solo)\s*\$(\d+)\s*(pp|person)', section, re.IGNORECASE)
+        if solo_match:
+            structured_pricing.append(f"{solo_match.group(1)}: ${solo_match.group(2)} per {solo_match.group(3)}")
+            continue
+
+        # Pattern 2: "X+ $XXX pp"
+        group_match = re.search(r'(\d+)\s*\+\s*\$(\d+)\s*(pp|person)', section, re.IGNORECASE)
+        if group_match:
+            structured_pricing.append(f"{group_match.group(1)}+ people: ${group_match.group(2)} per {group_match.group(3)}")
+            continue
+
+        # Pattern 3: just "$XXX"
+        price_only_match = re.search(r'\$(\d+)', section)
+        if price_only_match and not any(skip_phrase in section.lower() for skip_phrase in ['includes', 'subtract', 'does not include', 'price', 'upgrade', 'deposit', 'cancellation']):
+            structured_pricing.append(f"Price: ${price_only_match.group(1)}")
+            continue
+
+        # Pattern 4: "Half Day", "Full Day" etc.
+        day_type_match = re.search(r'(Half Day|Full Day|Day Tour|Day)', section, re.IGNORECASE)
+        if day_type_match:
+            structured_pricing.append(f"Tour Type: {day_type_match.group(1).strip()}")
+            continue
+
+        # If it contains pricing keywords but doesn't match above patterns, add as is
+        if any(keyword in section.lower() for keyword in ['solo', 'private', 'standard', 'adult', 'child', 'group', 'person', 'pp', '$']):
+            # Clean up any remaining issues
+            cleaned = re.sub(r'\s+', ' ', section).strip()
+            if cleaned:
+                structured_pricing.append(cleaned)
+
     return structured_pricing
 
 def format_pricing_markdown(pricing_list):
