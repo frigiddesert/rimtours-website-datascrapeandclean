@@ -1,0 +1,37 @@
+# Environment variables
+.env
+*.env
+
+# Data files (too large for Git)
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Database
+*.db
+*.sqlite3
+
+# Credentials
+*.key
+*.pem
+*.crt
+config.json
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Logs
+*.log
+logs/
