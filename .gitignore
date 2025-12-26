@@ -7,6 +7,13 @@ data/raw/*
 !data/raw/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+data/output/*
+!data/output/.gitkeep
+
+# Large outputs
+output/*
+!output/.gitkeep
+archive/*
 
 # Database
 *.db
@@ -34,4 +41,8 @@ venv/
 
 # Logs
 *.log
-logs/archive/old_outputs/tour_markdowns_*/
+logs/
+
+# Generated markdown files (these are outputs, not source code)
+outline_final_import/
+../markdown/
