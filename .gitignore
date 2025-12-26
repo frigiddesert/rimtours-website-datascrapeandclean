@@ -1,0 +1,10 @@
+*.csv
+*.json
+*.doc
+*.docx
+data/
+output/
+archive/
+New Itineraries/
+Old Itineraries/
+itinerary_docs/
