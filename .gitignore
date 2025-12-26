@@ -34,4 +34,4 @@ venv/
 
 # Logs
 *.log
-logs/
+logs/archive/old_outputs/tour_markdowns_*/

@@ -36,50 +36,115 @@ def main():
     # tour_urls = scraper.scrape_tour_listings()
     # raw_data = scraper.scrape_tour_pages(tour_urls)
     
-    # For now, let's simulate with some demo data
-    print("Processing demo data...")
-    
-    # Create demo data
-    demo_data = [
-        {
-            "title": "The Maze 5-Day",
-            "url": "https://rimtours.com/tours/the-maze-5-day/",
-            "subtitle": "Like nothing else... where outlaws escaped into wildly remote and inaccessible canyons",
-            "description": "Simply stated, the Maze is like nothing else. Legends of the old west tell stories of outlaws escaping into its wildly remote and inaccessible canyons.",
-            "images": ["https://rimtours.com/image1.jpg", "https://rimtours.com/image2.jpg"],
-            "prices": ["5-Day: $1575", "Deposit / Cancellation policy"],
-            "region": "Moab Area",
-            "skill_level": "",
-            "season": "Fall|Spring",
-            "duration": "5-Day/4-Night",
-            "depart_location": "Green River, UT",
-            "distance": "107 (excluding hiking on Day 3)",
-            "land_agency": "This tour is operated under permit with the Moab Field Office of the Bureau of Land Management. Rim Tours is an equal opportunity provider.",
-            "available_dates": "9/16-20, 2025",
-            "scraped_at": datetime.now().isoformat()
-        },
-        {
-            "title": "Kokopelli Trail",
-            "url": "https://rimtours.com/tours/kokopelli-trail/",
-            "subtitle": "From singletrack to slickrock, pinyon pines to aspens",
-            "description": "This is a journey through the lands of the mythical 'Kokopelli' or wandering flute player exemplified in Southwest rock art.",
-            "images": ["https://rimtours.com/image3.jpg"],
-            "prices": ["$1475", "Deposit / Cancellation policy"],
-            "region": "Colorado|Moab Area",
-            "skill_level": "",
-            "season": "Fall|Spring",
-            "duration": "4-Day/3-Night",
-            "depart_location": "Grand Junction, CO",
-            "distance": "130 miles",
-            "land_agency": "This tour is operated under permit with the Manti-La Sal National Forest and the Moab Field Office of the Bureau of Land Management. Rim Tours is an equal opportunity provider.",
-            "available_dates": "4/15-4/19, 2026",
-            "scraped_at": datetime.now().isoformat()
-        }
-    ]
+    # Load real data from website_export.csv
+    print("Loading real data from website_export.csv...")
+    try:
+        df_raw = pd.read_csv('../website_export.csv')
+        print(f"Loaded {len(df_raw)} tour records from website_export.csv")
+
+        # Convert dataframe to the format expected by processing functions
+        tour_data = []
+        for idx, row in df_raw.iterrows():
+            # Extract ACF field data with proper checks to avoid field_xxx references
+            subtitle = ""
+            description = ""
+            region = ""
+            skill_level = ""
+            season = ""
+            duration = ""
+            depart_location = ""
+            distance = ""
+            available_dates = ""
+
+            # Try different possible column names for each field, avoiding field references
+            for col in df_raw.columns:
+                col_lower = col.lower()
+                val = row[col] if pd.notna(row[col]) else ""
+
+                # Only use the value if it's not a field reference and is not empty
+                if 'subtitle' in col_lower and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    subtitle = str(val)
+                elif 'description' in col_lower and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    description = str(val)
+                elif 'region' in col_lower and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    region = str(val)
+                elif 'skill' in col_lower and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    skill_level = str(val)
+                elif 'season' in col_lower and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    season = str(val)
+                elif 'duration' in col_lower and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    duration = str(val)
+                elif 'depart' in col_lower and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    depart_location = str(val)
+                elif 'distance' in col_lower and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    distance = str(val)
+                elif ('date' in col_lower or 'avail' in col_lower) and pd.notna(val) and str(val).strip() and 'field_' not in str(val):
+                    available_dates = str(val)
+
+            tour_record = {
+                "title": row.get('Title', row.get('title', 'Unknown Tour')),
+                "url": row.get('Permalink', row.get('permalink', f"https://rimtours.com/tour-{idx}")),
+                "subtitle": subtitle,
+                "description": description,
+                "images": [url for url in str(row.get('Image URL', '') or '').split('|') if url.strip() and 'field_' not in url and url.startswith('http')] if pd.notna(row.get('Image URL', '')) else [],
+                "prices": [price for price in str(row.get('standard_price', '') or '').split('\n') if price.strip() and 'field_' not in str(price)] if pd.notna(row.get('standard_price', '')) else [],
+                "region": region,
+                "skill_level": skill_level,
+                "season": season,
+                "duration": duration,
+                "depart_location": depart_location,
+                "distance": distance,
+                "land_agency": "This tour is operated under permit with the Moab Field Office of the Bureau of Land Management. Rim Tours is an equal opportunity provider.",
+                "available_dates": available_dates,
+                "scraped_at": datetime.now().isoformat()
+            }
+            tour_data.append(tour_record)
+
+        print(f"Converted {len(tour_data)} tours from raw data")
+
+    except FileNotFoundError:
+        print("ERROR: website_export.csv not found in parent directory. Using fallback demo data...")
+        # Create demo data as fallback
+        tour_data = [
+            {
+                "title": "The Maze 5-Day",
+                "url": "https://rimtours.com/tours/the-maze-5-day/",
+                "subtitle": "Like nothing else... where outlaws escaped into wildly remote and inaccessible canyons",
+                "description": "Simply stated, the Maze is like nothing else. Legends of the old west tell stories of outlaws escaping into its wildly remote and inaccessible canyons.",
+                "images": ["https://rimtours.com/image1.jpg", "https://rimtours.com/image2.jpg"],
+                "prices": ["5-Day: $1575", "Deposit / Cancellation policy"],
+                "region": "Moab Area",
+                "skill_level": "",
+                "season": "Fall|Spring",
+                "duration": "5-Day/4-Night",
+                "depart_location": "Green River, UT",
+                "distance": "107 (excluding hiking on Day 3)",
+                "land_agency": "This tour is operated under permit with the Moab Field Office of the Bureau of Land Management. Rim Tours is an equal opportunity provider.",
+                "available_dates": "9/16-20, 2025",
+                "scraped_at": datetime.now().isoformat()
+            },
+            {
+                "title": "Kokopelli Trail",
+                "url": "https://rimtours.com/tours/kokopelli-trail/",
+                "subtitle": "From singletrack to slickrock, pinyon pines to aspens",
+                "description": "This is a journey through the lands of the mythical 'Kokopelli' or wandering flute player exemplified in Southwest rock art.",
+                "images": ["https://rimtours.com/image3.jpg"],
+                "prices": ["$1475", "Deposit / Cancellation policy"],
+                "region": "Colorado|Moab Area",
+                "skill_level": "",
+                "season": "Fall|Spring",
+                "duration": "4-Day/3-Night",
+                "depart_location": "Grand Junction, CO",
+                "distance": "130 miles",
+                "land_agency": "This tour is operated under permit with the Manti-La Sal National Forest and the Moab Field Office of the Bureau of Land Management. Rim Tours is an equal opportunity provider.",
+                "available_dates": "4/15-4/19, 2026",
+                "scraped_at": datetime.now().isoformat()
+            }
+        ]
     
     # Step 2: Clean and process the data
     print("Step 2: Cleaning and processing tour data...")
-    df_raw = pd.DataFrame(demo_data)
+    df_raw = pd.DataFrame(tour_data)
     
     # Process the dataframe
     df_processed = process_tour_dataframe(df_raw.copy())
@@ -111,12 +176,36 @@ def main():
     
     # Step 5: Generate final markdown files for each tour
     print("Step 5: Generating individual tour markdown files...")
-    output_dir = f"output/tour_markdowns_{timestamp}"
-    os.makedirs(output_dir, exist_ok=True)
+    base_output_dir = f"../markdown/tour_markdowns_{timestamp}"
+    os.makedirs(base_output_dir, exist_ok=True)
 
     for idx, row in df_processed.iterrows():
         tour_name = row['title'].replace('/', '_').replace('\\', '_').replace(':', '_').replace('*', '_').replace('?', '_').replace('"', '_').replace('<', '_').replace('>', '_').replace('|', '_')
         tour_name = "".join(c for c in tour_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+
+        # Determine the subdirectory based on business group
+        business_group = str(row.get('business_group', 'Unknown'))
+        if business_group in ['1', '3', '4']:
+            # Multi-day tours
+            if 'arizona' in row['title'].lower():
+                subdir = 'Multi-Day Tours/Arizona'
+            elif 'colorado' in row['title'].lower():
+                subdir = 'Multi-Day Tours/Colorado'
+            else:
+                subdir = 'Multi-Day Tours/Utah'
+        elif business_group == '2':
+            # Day tours
+            subdir = 'Day Tours'
+        elif any(word in row['title'].lower() for word in ['rental', 'service', 'shuttle']):
+            # Rentals & Services
+            subdir = 'Rentals & Services'
+        else:
+            # Default to Day Tours if business group is unknown
+            subdir = 'Day Tours'
+
+        # Create the subdirectory
+        output_subdir = os.path.join(base_output_dir, subdir)
+        os.makedirs(output_subdir, exist_ok=True)
 
         markdown_content = f"""# {row['title']}
 
@@ -203,15 +292,15 @@ For multi-day tours in Business Groups 1, 3, and 4:
 Day tours typically offer more flexible scheduling options.
 """
 
-        # Save individual tour file
-        tour_file_path = os.path.join(output_dir, f"{tour_name}.md")
+        # Save individual tour file in appropriate subdirectory
+        tour_file_path = os.path.join(output_subdir, f"{tour_name}.md")
         with open(tour_file_path, 'w', encoding='utf-8') as f:
             f.write(markdown_content)
-    
+
     print(f"Pipeline completed successfully!")
     print(f"- Processed data saved to: {csv_path}")
     print(f"- Data report generated: {report_path}")
-    print(f"- Individual tour files: {output_dir}/")
+    print(f"- Individual tour files: {base_output_dir}/")
     print(f"- Total tours processed: {len(df_processed)}")
 
 if __name__ == "__main__":
