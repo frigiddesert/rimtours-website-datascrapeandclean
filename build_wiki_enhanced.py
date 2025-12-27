@@ -31,16 +31,20 @@ def extract_stats_from_text(text):
     if c: stats["Camp"] = c.group(1).strip()
     return stats
 
-def load_docx_itineraries():
-    """Load all itinerary documents."""
+def load_docx_itineraries(directory=None):
+    """Load all itinerary documents from specified directory or default location."""
     db = {}
-    if not os.path.exists(DOCS_FOLDER): return db
-    
-    files = [f for f in os.listdir(DOCS_FOLDER) if f.lower().endswith(('.doc', '.docx'))]
-    print(f"📄 Found {len(files)} itinerary documents...")
-    
+
+    # Use provided directory or default to DOCS_FOLDER
+    folder = directory if directory else DOCS_FOLDER
+
+    if not os.path.exists(folder): return db
+
+    files = [f for f in os.listdir(folder) if f.lower().endswith(('.doc', '.docx'))]
+    print(f"📄 Found {len(files)} itinerary documents in {folder}...")
+
     for f in files:
-        filepath = os.path.join(DOCS_FOLDER, f)
+        filepath = os.path.join(folder, f)
         try:
             if f.lower().endswith('.docx'):
                 # Use docx for .docx files
@@ -49,7 +53,7 @@ def load_docx_itineraries():
                 db[f] = doc
             elif f.lower().endswith('.doc'):
                 # Use antiword for .doc files
-                result = subprocess.run(['antiword', filepath], 
+                result = subprocess.run(['antiword', filepath],
                                       capture_output=True, text=True, check=True)
                 text = result.stdout
                 # Create a mock object with a paragraphs-like structure for consistency
@@ -278,20 +282,24 @@ def main():
         with open(TOURS_FILE, 'r', encoding='utf-8') as f: tours = json.load(f)
     except: return print("Run unify_tours_advanced.py first!")
 
-    # Load Itineraries
-    doc_db = load_docx_itineraries()
-    
+    # Load Itineraries from both directories
+    doc_db_new = load_docx_itineraries("New Itineraries")
+    doc_db_old = load_docx_itineraries("Old Itineraries")
+
+    # Combine both document databases
+    doc_db = {**doc_db_new, **doc_db_old}
+
     # Create Output Dir
     if not os.path.exists(OUTPUT_DIR): os.makedirs(OUTPUT_DIR)
-    
+
     for tour in tours:
         name = tour['Master_Name']
         if any(x in name.lower() for x in ['fake', 'test', 'sold out', 'aaa ']): continue
-        
+
         # Find Itinerary Doc
         matched_doc_name = None
         itinerary_data = None
-        
+
         # Fuzzy Search - use more nuanced matching
         best_score = 0
         matched_doc_name = None  # Reset in case it was set earlier
@@ -311,7 +319,7 @@ def main():
             if score > required_threshold and score > best_score:
                 best_score = score
                 matched_doc_name = fname
-        
+
         if matched_doc_name:
             itinerary_data = process_doc_content(doc_db[matched_doc_name])
             print(f"✅ Found Doc for {name}: {matched_doc_name} (parsed {len(itinerary_data)} days)")
@@ -327,7 +335,7 @@ def main():
 
         # Generate
         md = generate_markdown(tour, itinerary_data)
-        
+
         # Save to proper subfolder
         sub = categorize(tour)
         p = os.path.join(OUTPUT_DIR, sub)

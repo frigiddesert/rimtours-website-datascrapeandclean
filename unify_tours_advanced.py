@@ -139,15 +139,23 @@ def main():
             return ""
 
         meta = {
-            "Subtitle": get_val(['_subtitle', 'subtitle']),
-            "Region": get_val(['_region', 'region', 'Region']),
-            "Skill": get_val(['_skill_level', 'skill_level']),
-            "Season": get_val(['_season', 'Season']),
-            "Fees_Bike": clean_html(get_val(['_bike_rental_fee', 'field_562fabffa8d13'])),
-            "Fees_Camp": clean_html(get_val(['_camp_rental_fee'])),
-            "Fees_Shuttle": clean_html(get_val(['_shuttle_fee'])),
+            "Subtitle": get_val(['subtitle', '_subtitle']),  # Prioritize actual content over field reference
+            "Region": get_val(['region', '_region', 'Region']),  # Prioritize actual content
+            "Skill": get_val(['skill_level', '_skill_level']),  # Prioritize actual content
+            "Season": get_val(['season', '_season']),  # Prioritize actual content
+            "Fees_Bike": clean_html(get_val(['bike_rental', '_bike_rental_fee'])),  # Prioritize actual content
+            "Fees_Camp": clean_html(get_val(['camp_rental', '_camp_rental_fee'])),  # Prioritize actual content
+            "Fees_Shuttle": clean_html(get_val(['shuttle_fee', '_shuttle_fee'])),  # Prioritize actual content
             "Images": extract_filenames(get_val(['Image URL', 'Featured Image']))
         }
+
+        # Extract the actual descriptions from the main columns (not just meta)
+        short_desc = get_val(['short_description', '_short_description', 'Excerpt'])
+        long_desc = get_val(['description', '_description', 'Content'])
+
+        # Clean the descriptions
+        short_desc_clean = clean_html(short_desc)
+        long_desc_clean = clean_html(long_desc)
         
         # Match Logic
         match_found = None
@@ -169,8 +177,8 @@ def main():
                 "Master_Name": clean_display if len(clean_display) > 3 else web_title,
                 "Website_ID": web_row.get('ID'),
                 "Slug": web_row.get('Slug'),
-                "Description_Short": clean_html(web_row.get('Excerpt') or web_row.get('short_description')),
-                "Description_Long": clean_html(web_row.get('Content')), # Clean HTML here
+                "Description_Short": short_desc_clean,
+                "Description_Long": long_desc_clean,
                 "Arctic_Variants": [],
                 "Sync_Status": "Web_Only",
                 "Meta": meta # Store the rich metadata here
